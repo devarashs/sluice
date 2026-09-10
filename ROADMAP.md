@@ -103,16 +103,18 @@ beside the code it applies to.
       the concurrency cap, timeouts, and metrics. Echo test through the
       forwarder, cap enforced, shutdown drains within the configured timeout.
       Demonstrated by hand.
-- [ ] S9 `sluice tls receiver` and `sluice tls entry`. An encrypted hop with
+- [x] S9 `sluice tls receiver` and `sluice tls entry`. An encrypted hop with
       certificate pinning, an auto-generated receiver certificate, a handshake
       deadline, and the shared serving tuning. End-to-end TLS test, wrong
       certificate refused unless insecure is explicit, silent and garbage
-      clients dropped. Demonstrated by hand. (in progress)
-- [ ] S10 Reverse tunnel protocol package. Versioned handshake with token,
-      bindings, and per-binding results, plus the per-stream header. Exhaustive
-      tests: bad token, oversized, truncated, wrong version, duplicate bindings,
-      handshake deadline, constant-time comparison. This is on the
-      unrecoverable list and gets the deepest tests in the repo.
+      clients dropped. Demonstrated by hand.
+- [x] S10 Reverse tunnel wire protocol. Versioned handshake with a digested,
+      constant-time token, client-declared bindings, and per-binding results,
+      plus the per-stream header. Exhaustive tests: bad token, length-varying
+      tokens, oversized and truncated frames at every offset, wrong version,
+      duplicate bindings, and the count ceiling checked before any body read.
+      This is on the unrecoverable list and gets the deepest tests in the repo.
+      The handshake deadline is the caller's (S11) to set on the connection.
 - [ ] S11 `sluice reverse server` and `sluice reverse client`. TLS, yamux,
       session pool, client-declared bindings, reconnect with backoff, several
       clients at once. End-to-end test from a user through a public port to a
