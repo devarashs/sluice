@@ -61,6 +61,7 @@ beside the code it applies to.
 
 - [ ] S1 Repo skeleton and CI gate. `sluice version` and `sluice help` run.
       gofmt, vet, race tests, build, and govulncheck pass in CI on every PR.
+      (in progress)
 - [ ] S2 Runtime package. NOFILE raise on Linux, memory limit and GC percent
       from config, admin listener serving `/healthz`, `/readyz`, `/metrics`,
       and `/debug/pprof`. Tests prove the endpoints answer and the memory limit
