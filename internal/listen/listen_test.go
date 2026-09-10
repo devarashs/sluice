@@ -133,6 +133,16 @@ func TestAcceptsAndHandsConnectionsToHandler(t *testing.T) {
 	}
 	wg.Wait()
 
+	// With every client gone, nothing is active even though each idle
+	// acceptor holds a cap slot while it waits in Accept.
+	settled := time.Now().Add(2 * time.Second)
+	for listener.Stats().Active != 0 && time.Now().Before(settled) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if stats := listener.Stats(); stats.Active != 0 {
+		t.Fatalf("active = %d with no clients connected; acceptor reservations must not count", stats.Active)
+	}
+
 	if err := stop(); err != nil {
 		t.Fatalf("Serve returned %v", err)
 	}

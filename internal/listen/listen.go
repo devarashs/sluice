@@ -109,13 +109,16 @@ type Stats struct {
 
 // Listener owns one or more bound sockets for a single address.
 type Listener struct {
-	cfg       Config
-	guards    Guards
-	logger    *slog.Logger
-	sockets   []net.Listener
-	handlers  sync.WaitGroup
-	accepted  atomic.Uint64
-	rejected  atomic.Uint64
+	cfg      Config
+	guards   Guards
+	logger   *slog.Logger
+	sockets  []net.Listener
+	handlers sync.WaitGroup
+	accepted atomic.Uint64
+	rejected atomic.Uint64
+	// active counts handlers in flight. It is kept apart from the cap's held
+	// slots, which also include acceptors waiting in Accept.
+	active    atomic.Int64
 	closeOnce sync.Once
 }
 
@@ -187,7 +190,7 @@ func (l *Listener) Stats() Stats {
 	return Stats{
 		Accepted:       l.accepted.Load(),
 		RejectedByRate: l.rejected.Load(),
-		Active:         l.guards.Cap.Active(),
+		Active:         int(l.active.Load()),
 	}
 }
 
@@ -242,7 +245,7 @@ func (l *Listener) drain(cancelHandlers context.CancelFunc) {
 	case <-done:
 		return
 	case <-time.After(l.cfg.DrainTimeout.Duration()):
-		l.logger.Warn("drain timeout reached; closing connections still in flight", "active", l.guards.Cap.Active())
+		l.logger.Warn("drain timeout reached; closing connections still in flight", "active", l.active.Load())
 		cancelHandlers()
 		<-done
 	}
@@ -290,10 +293,12 @@ func (l *Listener) acceptLoop(ctx, handlerCtx context.Context, socket net.Listen
 		}
 
 		l.accepted.Add(1)
+		l.active.Add(1)
 		l.handlers.Add(1)
 		go func() {
 			defer l.handlers.Done()
 			defer l.guards.Cap.Release()
+			defer l.active.Add(-1)
 			handler(handlerCtx, conn)
 		}()
 	}
