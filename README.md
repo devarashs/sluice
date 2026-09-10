@@ -182,6 +182,12 @@ field.
 connection counts — file-descriptor limits and the kernel settings that matter
 — is in [`docs/tuning.md`](docs/tuning.md).
 
+**Capacity.** How many connections a host can hold depends on the host, so
+sluice ships the harness to measure it rather than a headline number:
+`make bench` for throughput and setup rate, `make capacity` for heap per
+connection. The method and how to size from it are in
+[`docs/capacity.md`](docs/capacity.md).
+
 ## Status
 
 Pre-release. Progress and the design decisions behind it are tracked in
