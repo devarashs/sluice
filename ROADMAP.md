@@ -60,22 +60,22 @@ beside the code it applies to.
 
 ## Phase 1: Foundation
 
-- [ ] S1 Repo skeleton and CI gate. `sluice version` and `sluice help` run.
+- [x] S1 Repo skeleton and CI gate. `sluice version` and `sluice help` run.
       gofmt, vet, race tests, build, and govulncheck pass in CI on every PR.
-      (in progress)
-- [ ] S2 Process, logging, metrics, and admin packages. Open-file limit read
+- [x] S2 Process, logging, metrics, and admin packages. Open-file limit read
       and warned about, memory limit and GC percent from config, slog setup
       from config, a Prometheus registry with the runtime collectors, and an
       admin listener serving `/healthz`, `/readyz`, `/metrics`, and
       `/debug/pprof/`. Tests prove the endpoints answer, the memory limit is
-      applied, and log levels filter. (in progress)
+      applied, and log levels filter.
 - [ ] S3 Relay package. Bidirectional copy with the splice fast path, pooled
       buffers, idle timeout, half-close propagation, byte counters. Tests cover
       the idle timeout firing, half-close, and both directions closing cleanly.
-- [ ] S4 Config package. JSON loading, duration and size types, address
+      (in progress)
+- [x] S4 Config package. JSON loading, duration and size types, address
       validation, defaults, field-named errors. Tests cover malformed input,
-      unknown fields, and every default. (in progress; taken ahead of S2 and
-      S3 because every package's Config struct needs its value types)
+      unknown fields, and every default. Taken ahead of S2 and S3 because
+      every package's Config struct needs its value types.
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop honours the concurrency cap. Tests
       prove the connection past the cap is refused.
