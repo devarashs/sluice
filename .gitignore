@@ -1,0 +1,24 @@
+# Build output
+/sluice
+/sluice.exe
+/dist/
+/bin/
+coverage.out
+*.test
+*.prof
+
+# Key material and certificates must never be committed.
+*.pem
+*.key
+*.crt
+*.p12
+
+# Local configs. Commit examples under examples/ instead.
+*.local.json
+/config.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
