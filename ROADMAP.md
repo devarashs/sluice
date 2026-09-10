@@ -51,9 +51,17 @@ beside the code it applies to.
 - **Reverse tunnel.** TLS transport with server certificate pinning. A
   pre-shared token compared in constant time inside the TLS session. yamux for
   multiplexing. The client declares its port bindings in the handshake and the
-  server binds them per session, which lets many clients share a server. The
-  client keeps a pool of sessions so one TCP connection is not the throughput
-  ceiling. Reconnect uses capped exponential backoff with jitter.
+  server binds them per session, which lets many independent clients share a
+  server. Reconnect uses capped exponential backoff with jitter. Because yamux
+  streams have no half-close, the relay fully closes a tunnelled connection on
+  the first EOF when one end cannot half-close.
+  - *Revised from the original plan:* the client was to keep a pool of sessions
+    so one TCP connection was not the throughput ceiling. Grouping several TLS
+    sessions under one client's binding set needs a client identity the
+    protocol does not carry, and one yamux session already multiplexes a very
+    large number of streams, so v0.1 uses one session per client connection and
+    supports many independent clients. Intra-client session pooling is in the
+    backlog; it is an addition, not a redesign.
 - **Dependencies.** `hashicorp/yamux`, `prometheus/client_golang`,
   `golang.org/x/sys`, `golang.org/x/time`, `hashicorp/golang-lru/v2`. Nothing
   else without a reason written here first.
@@ -115,11 +123,13 @@ beside the code it applies to.
       duplicate bindings, and the count ceiling checked before any body read.
       This is on the unrecoverable list and gets the deepest tests in the repo.
       The handshake deadline is the caller's (S11) to set on the connection.
-- [ ] S11 `sluice reverse server` and `sluice reverse client`. TLS, yamux,
-      session pool, client-declared bindings, reconnect with backoff, several
-      clients at once. End-to-end test from a user through a public port to a
-      local echo, two bindings reach the right targets, the client survives a
-      server restart. Demonstrated by hand.
+- [x] S11 `sluice reverse server` and `sluice reverse client`. TLS, yamux,
+      client-declared bindings, reconnect with capped jittered backoff, many
+      independent clients. End-to-end tests from a user through a public port
+      to a local echo, two bindings reaching the right targets, the client
+      surviving a server restart, wrong token and wrong pin refused, and a
+      bind failure on one address not sinking the others. Demonstrated by hand
+      with the real binary. Session pooling deferred; see the decision above.
 
 ## Phase 3: Prove and ship
 
@@ -136,6 +146,9 @@ beside the code it applies to.
 
 Agreed out of scope for v0.1.
 
+- Intra-client reverse session pooling: several TLS sessions carrying one
+  client's bindings, to spread load across connections and cores and to soften
+  yamux head-of-line blocking. Needs a client identity in the handshake.
 - Mutual TLS client certificates for the reverse tunnel.
 - Per-client tokens with names, for auditing.
 - UDP forwarding.

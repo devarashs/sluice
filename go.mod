@@ -4,6 +4,7 @@ go 1.27
 
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/hashicorp/yamux v0.1.2
 	github.com/prometheus/client_golang v1.24.1
 	golang.org/x/sys v0.47.0
 	golang.org/x/time v0.16.0

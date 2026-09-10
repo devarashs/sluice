@@ -1,0 +1,18 @@
+{
+  "serverAddr": "203.0.113.20:9000",
+  "token": "change-me-to-a-long-random-secret",
+  "pinnedCertFile": "/etc/sluice/reverse-server.crt",
+
+  "bindings": [
+    { "publicAddr": "0.0.0.0:8080", "targetAddr": "127.0.0.1:3000" },
+    { "publicAddr": "0.0.0.0:8443", "targetAddr": "127.0.0.1:8443" }
+  ],
+
+  "dialTimeout": "10s",
+  "idleTimeout": "10m",
+  "reconnectMinBackoff": "1s",
+  "reconnectMaxBackoff": "1m",
+
+  "admin": { "listenAddr": "127.0.0.1:9800" },
+  "log": { "level": "info", "format": "text" }
+}

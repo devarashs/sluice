@@ -156,6 +156,12 @@ type relayRun struct {
 	cancelled atomic.Bool
 	closeOnce sync.Once
 
+	// halfClose is true only when both connections can signal EOF on one
+	// direction while keeping the other open. When either cannot — a yamux
+	// stream is the case that matters — half-closing one side would strand the
+	// other half-open, so the first clean EOF closes the whole relay instead.
+	halfClose bool
+
 	// err is the first cause of failure. Written once under errOnce; read
 	// after both copy goroutines have joined.
 	errOnce sync.Once
@@ -165,7 +171,15 @@ type relayRun struct {
 func newRelayRun(a, b net.Conn, opts Options) *relayRun {
 	r := &relayRun{a: a, b: b, opts: opts, start: time.Now(), returned: make(chan struct{}, 2)}
 	r.running.Store(2)
+	r.halfClose = canHalfClose(a) && canHalfClose(b)
 	return r
+}
+
+// canHalfClose reports whether c can close its write side alone, leaving its
+// read side open. TCP connections can; yamux streams and net.Pipe cannot.
+func canHalfClose(c net.Conn) bool {
+	_, ok := c.(interface{ CloseWrite() error })
+	return ok
 }
 
 func (r *relayRun) markActivity() {
@@ -236,9 +250,17 @@ func (r *relayRun) copy(counter *atomic.Int64, dst, src net.Conn) {
 
 		switch {
 		case err == nil:
-			// src reached EOF. Tell dst's peer nothing more is coming, but
-			// leave the other direction running.
-			closeWrite(dst)
+			// src reached EOF.
+			if r.halfClose {
+				// Tell dst's peer nothing more is coming, but leave the other
+				// direction running so a half-closed connection still drains.
+				closeWrite(dst)
+				return
+			}
+			// One side cannot half-close, so a half-open connection would
+			// leak. End the whole relay cleanly; the other direction, blocked
+			// in its read, returns through the r.closed check below.
+			r.closeBoth()
 			return
 		case r.closed.Load():
 			// This relay closed the connections: the other direction failed,
