@@ -31,6 +31,8 @@ func TestConnectionsRegistersEveryFamilyWithModeLabel(t *testing.T) {
 		RejectedByRate: func() uint64 { return rejected },
 	})
 	conns.DialFailed()
+	conns.HandshakeFailed()
+	conns.HandshakeFailed()
 	conns.RecordRelay(relay.Result{BytesAToB: 100, BytesBToA: 250})
 	conns.RecordRelay(relay.Result{BytesAToB: 1, Err: relay.ErrIdle})
 
@@ -46,6 +48,9 @@ func TestConnectionsRegistersEveryFamilyWithModeLabel(t *testing.T) {
 	}
 	if got := value(t, families, "sluice_dial_failures_total", `mode="forward"`); got != 1 {
 		t.Errorf("dial failures = %v", got)
+	}
+	if got := value(t, families, "sluice_tls_handshake_failures_total", `mode="forward"`); got != 2 {
+		t.Errorf("handshake failures = %v", got)
 	}
 	if got := value(t, families, "sluice_relay_bytes_total", `direction="upstream",mode="forward"`); got != 101 {
 		t.Errorf("upstream bytes = %v", got)
