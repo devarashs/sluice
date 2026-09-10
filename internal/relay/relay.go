@@ -36,8 +36,11 @@ const DefaultBufferSize = 16 * 1024
 
 // spliceChunk bounds one kernel-side copy so that byte counts and the
 // activity clock advance at least once per chunk on a busy spliced relay,
-// rather than only when the copy ends.
-const spliceChunk = 1 << 20
+// rather than only when the copy ends. It is the trade between one extra
+// loop iteration per chunk and how stale the clock can be for a slow
+// consumer: at 256KiB a peer draining 1MB/s still marks activity four times
+// a second, so it is never mistaken for one that has stopped.
+const spliceChunk = 256 << 10
 
 // ErrIdle reports that neither direction carried a byte for Options.IdleTimeout.
 var ErrIdle = errors.New("relay: idle timeout")

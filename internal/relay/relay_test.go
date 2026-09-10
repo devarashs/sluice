@@ -383,14 +383,16 @@ func slowReader(conn net.Conn, want int, piece int, pause time.Duration) ([]byte
 func TestPokesDuringSlowTransferKeepDataIntact(t *testing.T) {
 	for kind, newPair := range pairKinds {
 		t.Run(kind, func(t *testing.T) {
-			const idle = 40 * time.Millisecond
+			const idle = 100 * time.Millisecond
 			left, right, results, _ := relayed(t, newPair, Options{IdleTimeout: idle})
-			payload := randomBytes(t, 4<<20)
+			payload := randomBytes(t, 2<<20)
 
-			// The consumer is slower than the idle interval per piece would
-			// allow if progress were not counted, so the relay is poked many
-			// times mid-transfer and must neither lose bytes nor give up.
-			outcome := readInBackground(func() ([]byte, error) { return slowReader(right, len(payload), 32*1024, 3*time.Millisecond) })
+			// The consumer drains about 1.6MB/s, so on the splice path a chunk
+			// takes longer than the idle interval and the watchdog pokes the
+			// relay many times mid-transfer; each individual read frees the
+			// blocked write within a tenth of the grace, even under the race
+			// detector. The relay must neither lose bytes nor give up.
+			outcome := readInBackground(func() ([]byte, error) { return slowReader(right, len(payload), 16*1024, 10*time.Millisecond) })
 			if _, err := left.Write(payload); err != nil {
 				t.Fatal(err)
 			}
