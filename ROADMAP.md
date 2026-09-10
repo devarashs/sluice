@@ -136,8 +136,10 @@ beside the code it applies to.
 - [ ] S12 Load-test harness and capacity guide. Measures memory per connection
       and connections per second for each mode and records the numbers in the
       docs so operators can size hosts.
-- [ ] S13 Release pipeline. A tag produces linux amd64 and arm64 binaries with a
-      checksums file and the version stamped in.
+- [x] S13 Release pipeline. A tag produces linux amd64 and arm64 binaries with a
+      checksums file and the version stamped in, via a Makefile `dist` target
+      the release workflow calls. Verified locally: both statically-linked ELF
+      binaries build and `sluice version` reports the stamped tag.
 - [ ] S14 Docs and examples. Quick start per mode, example configs, a systemd
       unit with `LimitNOFILE`, and sysctl tuning for high connection counts.
 - [ ] S15 Tag v0.1.0.
