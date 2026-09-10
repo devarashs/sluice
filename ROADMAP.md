@@ -80,12 +80,12 @@ beside the code it applies to.
       validation, defaults, field-named errors. Tests cover malformed input,
       unknown fields, and every default. Taken ahead of S2 and S3 because
       every package's Config struct needs its value types.
-- [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
+- [x] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop waits on the concurrency cap and
       applies the per-client rate limit before spending a goroutine; TCP
       keepalive; shutdown drains then cancels. Tests prove the connection past
       the cap waits in the backlog, the rate-limited one is closed, and the
-      drain timeout is honoured. (in progress)
+      drain timeout is honoured.
 - [x] S6 Limits package. Global cap and bounded per-client rate limiter,
       where a client is an IPv4 address or an IPv6 /64. Tests prove bounded
       memory under many distinct clients and refusal at the rate.
@@ -97,10 +97,12 @@ beside the code it applies to.
 
 ## Phase 2: Modes
 
-- [ ] S8 `sluice forward`. Plain TCP forwarding on the shared packages, with
+- [ ] S8 `sluice forward` and the `app` runner every mode shares: logger,
+      process settings, metrics registry, admin listener, readiness, signal
+      handling with drain. Plain TCP forwarding on the shared packages, with
       the concurrency cap, timeouts, and metrics. Echo test through the
       forwarder, cap enforced, shutdown drains within the configured timeout.
-      Demonstrated by hand.
+      Demonstrated by hand. (in progress)
 - [ ] S9 `sluice tls receiver` and `sluice tls entry`. An encrypted hop with
       certificate pinning, an auto-generated receiver certificate, and rate
       limiting. End-to-end TLS test, wrong certificate refused unless insecure
