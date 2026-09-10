@@ -42,9 +42,12 @@ beside the code it applies to.
 - **Process.** Go 1.19 and later already raise the open-file soft limit to the
   hard limit, so sluice reads the limit, logs it, and warns when it is low. The
   Go memory limit and GC percent are exposed under `process`.
-- **Certificates.** Generated certificates are ECDSA P-256 with SANs from
-  config. Existing RSA certificates still load. Skipping verification is only
-  possible through an explicit `insecureSkipVerify: true`, logged loudly.
+- **Certificates.** Trust is a pin, not a chain: a client holds the exact
+  certificate its server presents and accepts nothing else, so hostnames and
+  expiry play no part and operators copy one file. Generated certificates are
+  ECDSA P-256, valid ten years, keys written 0600 and never overwritten. Both
+  ends speak TLS 1.3 only. Skipping verification is only possible through an
+  explicit `insecureSkipVerify: true`, logged loudly.
 - **Reverse tunnel.** TLS transport with server certificate pinning. A
   pre-shared token compared in constant time inside the TLS session. yamux for
   multiplexing. The client declares its port bindings in the handshake and the
@@ -78,15 +81,19 @@ beside the code it applies to.
       unknown fields, and every default. Taken ahead of S2 and S3 because
       every package's Config struct needs its value types.
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
-      fallback elsewhere; the accept loop honours the concurrency cap. Tests
-      prove the connection past the cap is refused.
+      fallback elsewhere; the accept loop waits on the concurrency cap and
+      applies the per-client rate limit before spending a goroutine; TCP
+      keepalive; shutdown drains then cancels. Tests prove the connection past
+      the cap waits in the backlog, the rate-limited one is closed, and the
+      drain timeout is honoured. (in progress)
 - [x] S6 Limits package. Global cap and bounded per-client rate limiter,
       where a client is an IPv4 address or an IPv6 /64. Tests prove bounded
       memory under many distinct clients and refusal at the rate.
-- [ ] S7 Certificates package. ECDSA generation with SANs, CA pool loading,
-      explicit insecure flag, cert/key mismatch detection. Tests prove a
-      generated certificate verifies through the loader and that a certificate
-      without its key is rejected. (in progress)
+- [x] S7 Certificates package. ECDSA generation with SANs, exact-certificate
+      pinning with rotation support, explicit insecure flag, half-a-pair
+      detection. Tests prove a real TLS 1.3 handshake succeeds only against
+      the pinned certificate and that a certificate without its key is
+      rejected.
 
 ## Phase 2: Modes
 
