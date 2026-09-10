@@ -7,14 +7,11 @@ import (
 
 // Concurrency caps how many connections a mode handles at once.
 //
-// Acquire blocks rather than rejecting. A listener that waits before calling
-// Accept leaves excess clients in the kernel's accept backlog, where they
-// wait for a slot without costing a descriptor or a goroutine, instead of
-// being accepted only to be closed, which at high rates is pure churn.
-//
-// Because acceptors hold a slot while they wait in Accept, the number of
-// held slots is not the number of connections in flight; a listener counts
-// those itself.
+// Acquire blocks rather than rejecting. An acceptor that waits for a slot
+// while holding one accepted connection leaves everything behind it in the
+// kernel's accept backlog, where clients wait without costing a descriptor
+// or a goroutine, instead of being accepted only to be closed, which at high
+// rates is pure churn.
 type Concurrency struct {
 	// slots is nil when there is no cap.
 	slots chan struct{}
@@ -65,8 +62,7 @@ func (c *Concurrency) Release() {
 	}
 }
 
-// Held is the number of slots currently taken, including those reserved by
-// acceptors waiting for a connection.
+// Held is the number of slots currently taken.
 func (c *Concurrency) Held() int {
 	return int(c.held.Load())
 }

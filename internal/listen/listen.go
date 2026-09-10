@@ -9,6 +9,13 @@
 // kernel spreads incoming connections across independent accept queues.
 // Elsewhere one socket is shared by all acceptors, which still overlaps the
 // work of accepting with the work of handing off.
+//
+// An acceptor takes one connection and then waits for a cap slot while
+// holding it, so at most one accepted-but-unserved connection exists per
+// acceptor and the rest stay in the kernel backlog. Reserving the slot before
+// Accept would bound descriptors slightly tighter, but with independent
+// queues it lets an acceptor hold the last slot while sitting on an empty
+// queue as clients wait in another; that starvation was seen on Linux.
 package listen
 
 import (
@@ -116,8 +123,7 @@ type Listener struct {
 	handlers sync.WaitGroup
 	accepted atomic.Uint64
 	rejected atomic.Uint64
-	// active counts handlers in flight. It is kept apart from the cap's held
-	// slots, which also include acceptors waiting in Accept.
+	// active counts handlers in flight.
 	active    atomic.Int64
 	closeOnce sync.Once
 }
@@ -256,15 +262,8 @@ func (l *Listener) drain(cancelHandlers context.CancelFunc) {
 func (l *Listener) acceptLoop(ctx, handlerCtx context.Context, socket net.Listener, handler Handler) error {
 	var backoff time.Duration
 	for {
-		// Wait for a slot before accepting, so excess clients queue in the
-		// kernel backlog instead of being accepted and closed.
-		if err := l.guards.Cap.Acquire(ctx); err != nil {
-			return nil
-		}
-
 		conn, err := socket.Accept()
 		if err != nil {
-			l.guards.Cap.Release()
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -288,8 +287,14 @@ func (l *Listener) acceptLoop(ctx, handlerCtx context.Context, socket net.Listen
 			l.rejected.Add(1)
 			l.logger.Debug("connection refused by rate limit", "client", clientAddr)
 			conn.Close()
-			l.guards.Cap.Release()
 			continue
+		}
+
+		// Wait for a slot while holding this one connection; everything
+		// behind it stays in the kernel backlog.
+		if err := l.guards.Cap.Acquire(ctx); err != nil {
+			conn.Close()
+			return nil
 		}
 
 		l.accepted.Add(1)
