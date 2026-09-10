@@ -34,9 +34,11 @@ beside the code it applies to.
   small pooled buffers. Per-connection memory is the number that sets capacity.
 - **Listeners.** `SO_REUSEPORT` with one acceptor per CPU on Linux, one acceptor
   elsewhere.
-- **Limits.** Global concurrency cap on an atomic counter. Per-IP rate limiting
-  with `x/time/rate` buckets held in a bounded LRU, so memory cannot grow with
-  the number of attacking IPs.
+- **Limits.** Global concurrency cap as a channel semaphore, which costs no
+  memory per slot and lets the accept loop wait for a slot instead of
+  accepting and closing. Per-client rate limiting with `x/time/rate` buckets
+  held in a bounded LRU, so memory cannot grow with the number of attacking
+  addresses. A client is one IPv4 address or one IPv6 /64.
 - **Process.** Go 1.19 and later already raise the open-file soft limit to the
   hard limit, so sluice reads the limit, logs it, and warns when it is low. The
   Go memory limit and GC percent are exposed under `process`.
@@ -68,10 +70,9 @@ beside the code it applies to.
       admin listener serving `/healthz`, `/readyz`, `/metrics`, and
       `/debug/pprof/`. Tests prove the endpoints answer, the memory limit is
       applied, and log levels filter.
-- [ ] S3 Relay package. Bidirectional copy with the splice fast path, pooled
+- [x] S3 Relay package. Bidirectional copy with the splice fast path, pooled
       buffers, idle timeout, half-close propagation, byte counters. Tests cover
       the idle timeout firing, half-close, and both directions closing cleanly.
-      (in progress)
 - [x] S4 Config package. JSON loading, duration and size types, address
       validation, defaults, field-named errors. Tests cover malformed input,
       unknown fields, and every default. Taken ahead of S2 and S3 because
@@ -79,8 +80,9 @@ beside the code it applies to.
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop honours the concurrency cap. Tests
       prove the connection past the cap is refused.
-- [ ] S6 Limits package. Global cap and bounded per-IP rate limiter. Tests
-      prove bounded memory under many distinct IPs and refusal at the rate.
+- [ ] S6 Limits package. Global cap and bounded per-client rate limiter,
+      where a client is an IPv4 address or an IPv6 /64. Tests prove bounded
+      memory under many distinct clients and refusal at the rate. (in progress)
 - [ ] S7 Certificates package. ECDSA generation with SANs, CA pool loading,
       explicit insecure flag, cert/key mismatch detection. Tests prove a
       generated certificate verifies through the loader and that a certificate

@@ -2,7 +2,11 @@ module github.com/devarashs/sluice
 
 go 1.27
 
-require github.com/prometheus/client_golang v1.24.1
+require (
+	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/prometheus/client_golang v1.24.1
+	golang.org/x/time v0.16.0
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
