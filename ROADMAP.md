@@ -80,13 +80,13 @@ beside the code it applies to.
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop honours the concurrency cap. Tests
       prove the connection past the cap is refused.
-- [ ] S6 Limits package. Global cap and bounded per-client rate limiter,
+- [x] S6 Limits package. Global cap and bounded per-client rate limiter,
       where a client is an IPv4 address or an IPv6 /64. Tests prove bounded
-      memory under many distinct clients and refusal at the rate. (in progress)
+      memory under many distinct clients and refusal at the rate.
 - [ ] S7 Certificates package. ECDSA generation with SANs, CA pool loading,
       explicit insecure flag, cert/key mismatch detection. Tests prove a
       generated certificate verifies through the loader and that a certificate
-      without its key is rejected.
+      without its key is rejected. (in progress)
 
 ## Phase 2: Modes
 
