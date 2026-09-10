@@ -23,7 +23,7 @@ beside the code it applies to.
 - **Config.** JSON via `-config`. `listenAddr` is where a mode listens,
   `targetAddr` is where it dials. Durations are strings such as `"30s"`, sizes
   are strings such as `"64KiB"`. Shared blocks: `limits`, `admin`, `log`,
-  `runtime`.
+  `process`.
 - **Logging.** Stdlib `log/slog`. Per-connection events at debug level only.
   At millions of connections, per-connection logging is the bottleneck.
 - **Metrics.** Prometheus through `client_golang` on an admin listener bound to
@@ -37,8 +37,9 @@ beside the code it applies to.
 - **Limits.** Global concurrency cap on an atomic counter. Per-IP rate limiting
   with `x/time/rate` buckets held in a bounded LRU, so memory cannot grow with
   the number of attacking IPs.
-- **Runtime.** Raise the `RLIMIT_NOFILE` soft limit to the hard limit at startup
-  on Linux. Expose the Go memory limit and GC percent in config.
+- **Process.** Go 1.19 and later already raise the open-file soft limit to the
+  hard limit, so sluice reads the limit, logs it, and warns when it is low. The
+  Go memory limit and GC percent are exposed under `process`.
 - **Certificates.** Generated certificates are ECDSA P-256 with SANs from
   config. Existing RSA certificates still load. Skipping verification is only
   possible through an explicit `insecureSkipVerify: true`, logged loudly.
@@ -62,16 +63,19 @@ beside the code it applies to.
 - [ ] S1 Repo skeleton and CI gate. `sluice version` and `sluice help` run.
       gofmt, vet, race tests, build, and govulncheck pass in CI on every PR.
       (in progress)
-- [ ] S2 Runtime package. NOFILE raise on Linux, memory limit and GC percent
-      from config, admin listener serving `/healthz`, `/readyz`, `/metrics`,
-      and `/debug/pprof`. Tests prove the endpoints answer and the memory limit
-      is applied.
+- [ ] S2 Process, logging, metrics, and admin packages. Open-file limit read
+      and warned about, memory limit and GC percent from config, slog setup
+      from config, a Prometheus registry with the runtime collectors, and an
+      admin listener serving `/healthz`, `/readyz`, `/metrics`, and
+      `/debug/pprof/`. Tests prove the endpoints answer, the memory limit is
+      applied, and log levels filter. (in progress)
 - [ ] S3 Relay package. Bidirectional copy with the splice fast path, pooled
       buffers, idle timeout, half-close propagation, byte counters. Tests cover
       the idle timeout firing, half-close, and both directions closing cleanly.
 - [ ] S4 Config package. JSON loading, duration and size types, address
       validation, defaults, field-named errors. Tests cover malformed input,
-      unknown fields, and every default.
+      unknown fields, and every default. (in progress; taken ahead of S2 and
+      S3 because every package's Config struct needs its value types)
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop honours the concurrency cap. Tests
       prove the connection past the cap is refused.
