@@ -14,6 +14,7 @@ import (
 	"github.com/devarashs/sluice/internal/app"
 	"github.com/devarashs/sluice/internal/config"
 	"github.com/devarashs/sluice/internal/metrics"
+	"github.com/devarashs/sluice/internal/serving"
 )
 
 // echoServer accepts on loopback and echoes each connection until EOF.
@@ -42,10 +43,10 @@ func echoServer(t *testing.T) string {
 func validConfig(t *testing.T, target string) *Config {
 	t.Helper()
 	cfg := &Config{
-		Common:      app.Common{Admin: admin.Config{Disabled: true}},
-		ListenAddr:  "127.0.0.1:0",
-		TargetAddr:  target,
-		DialTimeout: config.Duration(2 * time.Second),
+		Common:     app.Common{Admin: admin.Config{Disabled: true}},
+		Config:     serving.Config{DialTimeout: config.Duration(2 * time.Second)},
+		ListenAddr: "127.0.0.1:0",
+		TargetAddr: target,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
@@ -237,37 +238,24 @@ func TestValidateDefaultsAndErrors(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DialTimeout.Duration() != DefaultDialTimeout || cfg.IdleTimeout.Duration() != DefaultIdleTimeout {
+	if cfg.DialTimeout.Duration() != serving.DefaultDialTimeout || cfg.IdleTimeout.Duration() != serving.DefaultIdleTimeout {
 		t.Errorf("timeouts = %v / %v", cfg.DialTimeout, cfg.IdleTimeout)
-	}
-	if cfg.BufferSize != 16*config.KiB {
-		t.Errorf("bufferSize = %v", cfg.BufferSize)
 	}
 	if cfg.Listener.Acceptors == 0 || cfg.Log.Level != "info" {
 		t.Errorf("nested defaults not applied: %+v", cfg)
-	}
-	if cfg.relayOptions().IdleTimeout != DefaultIdleTimeout {
-		t.Errorf("relay idle = %v", cfg.relayOptions().IdleTimeout)
-	}
-
-	cfg.NoIdleTimeout = true
-	if cfg.relayOptions().IdleTimeout != 0 {
-		t.Error("noIdleTimeout should disable the relay idle timeout")
 	}
 
 	cases := map[string]struct {
 		mutate func(*Config)
 		field  string
 	}{
-		"missing listen":    {func(c *Config) { c.ListenAddr = "" }, "listenAddr"},
-		"bad target":        {func(c *Config) { c.TargetAddr = "nohost" }, "targetAddr"},
-		"idle too short":    {func(c *Config) { c.IdleTimeout = config.Duration(100 * time.Millisecond) }, "idleTimeout"},
-		"buffer too small":  {func(c *Config) { c.BufferSize = 100 }, "bufferSize"},
-		"nested limits":     {func(c *Config) { c.Limits.MaxConnections = -5 }, "limits.maxConnections"},
-		"nested admin":      {func(c *Config) { c.Admin.Disabled = false; c.Admin.ListenAddr = "bad" }, "admin.listenAddr"},
-		"nested log":        {func(c *Config) { c.Log.Level = "loud" }, "log.level"},
-		"nested listener":   {func(c *Config) { c.Listener.Acceptors = -1 }, "listener.acceptors"},
-		"nested per-client": {func(c *Config) { c.Limits.PerClient.ConnectionsPerSecond = -1 }, "limits.perClient.connectionsPerSecond"},
+		"missing listen":  {func(c *Config) { c.ListenAddr = "" }, "listenAddr"},
+		"bad target":      {func(c *Config) { c.TargetAddr = "nohost" }, "targetAddr"},
+		"idle too short":  {func(c *Config) { c.IdleTimeout = config.Duration(100 * time.Millisecond) }, "idleTimeout"},
+		"nested limits":   {func(c *Config) { c.Limits.MaxConnections = -5 }, "limits.maxConnections"},
+		"nested admin":    {func(c *Config) { c.Admin.Disabled = false; c.Admin.ListenAddr = "bad" }, "admin.listenAddr"},
+		"nested log":      {func(c *Config) { c.Log.Level = "loud" }, "log.level"},
+		"nested listener": {func(c *Config) { c.Listener.Acceptors = -1 }, "listener.acceptors"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
