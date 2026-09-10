@@ -57,6 +57,7 @@ func rootCommand() *Command {
 		Name:    "sluice",
 		Summary: "Moves TCP connections between hosts",
 		Subcommands: []*Command{
+			forwardCommand,
 			{Name: "version", Summary: "Print the build version", Run: runVersion},
 		},
 	}
