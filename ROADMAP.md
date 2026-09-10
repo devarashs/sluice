@@ -71,7 +71,8 @@ beside the code it applies to.
       the idle timeout firing, half-close, and both directions closing cleanly.
 - [ ] S4 Config package. JSON loading, duration and size types, address
       validation, defaults, field-named errors. Tests cover malformed input,
-      unknown fields, and every default.
+      unknown fields, and every default. (in progress; taken ahead of S2 and
+      S3 because every package's Config struct needs its value types)
 - [ ] S5 Listener package. Multi-acceptor with `SO_REUSEPORT` on Linux and a
       fallback elsewhere; the accept loop honours the concurrency cap. Tests
       prove the connection past the cap is refused.
