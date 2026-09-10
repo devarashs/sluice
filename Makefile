@@ -20,7 +20,7 @@ LDFLAGS := -s -w \
 # arm64 is cross-compiled.
 PLATFORMS := linux/amd64 linux/arm64
 
-.PHONY: build test race vet fmt lint dist clean
+.PHONY: build test race vet fmt lint bench capacity dist clean
 
 build: ## Build the binary for the host platform into ./bin
 	@mkdir -p bin
@@ -40,6 +40,12 @@ fmt: ## Check formatting
 	if [ -n "$$unformatted" ]; then echo "gofmt needed:"; echo "$$unformatted"; exit 1; fi
 
 lint: fmt vet ## Formatting and vet
+
+bench: ## Run the throughput and setup-rate benchmarks (see docs/capacity.md)
+	go test -bench=. -benchmem -run=^$$ ./internal/bench/
+
+capacity: ## Measure heap per idle connection (CONNS overrides the count)
+	go run ./cmd/sluice-capacity -conns $(or $(CONNS),10000)
 
 dist: ## Cross-compile every release platform into ./dist with a checksums file
 	@rm -rf dist && mkdir -p dist
