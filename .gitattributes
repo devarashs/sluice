@@ -1,0 +1,2 @@
+# Store every text file with LF so gofmt and CI agree with a Windows checkout.
+* text=auto eol=lf

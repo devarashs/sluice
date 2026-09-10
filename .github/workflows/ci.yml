@@ -1,0 +1,50 @@
+# The merge gate. Every pull request and every push to main must pass all of
+# these before it counts. It runs on Linux because that is the production
+# target, so this is also where Linux-only code paths get exercised.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Module tidiness
+        run: go mod tidy -diff
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Tests with race detector
+        run: go test -race -count=1 ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
