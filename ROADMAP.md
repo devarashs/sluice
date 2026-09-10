@@ -97,16 +97,17 @@ beside the code it applies to.
 
 ## Phase 2: Modes
 
-- [ ] S8 `sluice forward` and the `app` runner every mode shares: logger,
+- [x] S8 `sluice forward` and the `app` runner every mode shares: logger,
       process settings, metrics registry, admin listener, readiness, signal
       handling with drain. Plain TCP forwarding on the shared packages, with
       the concurrency cap, timeouts, and metrics. Echo test through the
       forwarder, cap enforced, shutdown drains within the configured timeout.
-      Demonstrated by hand. (in progress)
+      Demonstrated by hand.
 - [ ] S9 `sluice tls receiver` and `sluice tls entry`. An encrypted hop with
-      certificate pinning, an auto-generated receiver certificate, and rate
-      limiting. End-to-end TLS test, wrong certificate refused unless insecure
-      is explicit, rate limit enforced. Demonstrated by hand.
+      certificate pinning, an auto-generated receiver certificate, a handshake
+      deadline, and the shared serving tuning. End-to-end TLS test, wrong
+      certificate refused unless insecure is explicit, silent and garbage
+      clients dropped. Demonstrated by hand. (in progress)
 - [ ] S10 Reverse tunnel protocol package. Versioned handshake with token,
       bindings, and per-binding results, plus the per-stream header. Exhaustive
       tests: bad token, oversized, truncated, wrong version, duplicate bindings,

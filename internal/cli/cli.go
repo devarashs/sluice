@@ -58,6 +58,7 @@ func rootCommand() *Command {
 		Summary: "Moves TCP connections between hosts",
 		Subcommands: []*Command{
 			forwardCommand,
+			tlsCommand,
 			{Name: "version", Summary: "Print the build version", Run: runVersion},
 		},
 	}

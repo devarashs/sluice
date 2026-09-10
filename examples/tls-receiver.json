@@ -1,0 +1,15 @@
+{
+  "listenAddr": "0.0.0.0:9443",
+  "targetAddr": "127.0.0.1:10002",
+
+  "certFile": "/etc/sluice/receiver.crt",
+  "keyFile": "/etc/sluice/receiver.key",
+  "certHosts": ["receiver.example.net", "203.0.113.10"],
+  "handshakeTimeout": "10s",
+
+  "idleTimeout": "10m",
+  "limits": { "maxConnections": 200000, "perClient": { "connectionsPerSecond": 200, "burst": 1000 } },
+
+  "admin": { "listenAddr": "127.0.0.1:9800" },
+  "log": { "level": "info", "format": "text" }
+}

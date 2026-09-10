@@ -21,9 +21,10 @@ type ConnectionSources struct {
 // Metric names are shared across modes with a constant `mode` label, so one
 // dashboard covers every kind of sluice process.
 type Connections struct {
-	dialFailures prometheus.Counter
-	bytes        *prometheus.CounterVec
-	relayEnded   *prometheus.CounterVec
+	dialFailures      prometheus.Counter
+	handshakeFailures prometheus.Counter
+	bytes             *prometheus.CounterVec
+	relayEnded        *prometheus.CounterVec
 }
 
 // Direction labels for relay_bytes_total. Upstream is client to target.
@@ -63,7 +64,11 @@ func NewConnections(registry prometheus.Registerer, mode string, sources Connect
 	c := &Connections{
 		dialFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: Namespace, Name: "dial_failures_total", ConstLabels: modeLabel,
-			Help: "Accepted connections dropped because the target could not be reached.",
+			Help: "Accepted connections dropped because the next hop could not be reached or refused the handshake.",
+		}),
+		handshakeFailures: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: Namespace, Name: "tls_handshake_failures_total", ConstLabels: modeLabel,
+			Help: "Accepted connections dropped because the client's TLS handshake failed or timed out.",
 		}),
 		bytes: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: Namespace, Name: "relay_bytes_total", ConstLabels: modeLabel,
@@ -74,7 +79,7 @@ func NewConnections(registry prometheus.Registerer, mode string, sources Connect
 			Help: "Relays finished, by cause.",
 		}, []string{"cause"}),
 	}
-	registry.MustRegister(c.dialFailures, c.bytes, c.relayEnded)
+	registry.MustRegister(c.dialFailures, c.handshakeFailures, c.bytes, c.relayEnded)
 
 	// Create every label combination up front so dashboards see zeros rather
 	// than absent series before the first event.
@@ -87,9 +92,14 @@ func NewConnections(registry prometheus.Registerer, mode string, sources Connect
 	return c
 }
 
-// DialFailed records an accepted connection that never reached its target.
+// DialFailed records an accepted connection that never reached its next hop.
 func (c *Connections) DialFailed() {
 	c.dialFailures.Inc()
+}
+
+// HandshakeFailed records an accepted connection whose TLS handshake failed.
+func (c *Connections) HandshakeFailed() {
+	c.handshakeFailures.Inc()
 }
 
 // RecordRelay records a finished relay whose A side was the client and B
