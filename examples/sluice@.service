@@ -1,0 +1,55 @@
+# systemd unit for sluice, one instance per config file under /etc/sluice.
+#
+# The instance name is the config basename without .json. Because a sluice
+# subcommand can be two words ("tls entry", "reverse server") while a systemd
+# instance name is a single token, the subcommand is chosen from the instance
+# name by an EnvironmentFile, not by splitting the name. Set it up like this:
+#
+#   sudo install -Dm644 sluice@.service /etc/systemd/system/sluice@.service
+#   sudo mkdir -p /etc/sluice
+#   # put your config at /etc/sluice/<name>.json, e.g. /etc/sluice/edge.json
+#   # tell the unit which subcommand that config is for:
+#   echo 'SLUICE_CMD=reverse server' | sudo tee /etc/sluice/edge.cmd
+#   sudo systemctl enable --now sluice@edge
+#
+# For a forward config at /etc/sluice/edge.json the .cmd file would hold
+# SLUICE_CMD=forward, and so on. Run several at once with several instances.
+
+[Unit]
+Description=sluice %i
+Documentation=https://github.com/devarashs/sluice
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/sluice/%i.cmd
+# $SLUICE_CMD is intentionally unquoted so "reverse server" splits into two
+# arguments.
+ExecStart=/usr/local/bin/sluice $SLUICE_CMD -config /etc/sluice/%i.json
+
+# Run as an unprivileged, sandboxed, per-instance user. Binding ports below
+# 1024 needs the capability below; everything else is locked down.
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# The receiver and reverse server generate a certificate on first start, so
+# the directory holding configs and certs must be writable.
+ReadWritePaths=/etc/sluice
+
+# The number that caps how many connections one instance can hold: each
+# relayed connection costs two descriptors. Keep it at or above twice the
+# config's limits.maxConnections.
+LimitNOFILE=1048576
+
+Restart=on-failure
+RestartSec=2s
+# Allow the graceful drain to finish; keep this above listener.drainTimeout.
+TimeoutStopSec=45s
+
+[Install]
+WantedBy=multi-user.target
