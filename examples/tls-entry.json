@@ -1,0 +1,13 @@
+{
+  "listenAddr": "127.0.0.1:8080",
+  "receiverAddr": "203.0.113.10:9443",
+
+  "pinnedCertFile": "/etc/sluice/receiver.crt",
+
+  "dialTimeout": "10s",
+  "idleTimeout": "10m",
+  "limits": { "maxConnections": 200000 },
+
+  "admin": { "listenAddr": "127.0.0.1:9800" },
+  "log": { "level": "info", "format": "text" }
+}
