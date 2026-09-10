@@ -59,6 +59,7 @@ func rootCommand() *Command {
 		Subcommands: []*Command{
 			forwardCommand,
 			tlsCommand,
+			reverseCommand,
 			{Name: "version", Summary: "Print the build version", Run: runVersion},
 		},
 	}

@@ -1,0 +1,18 @@
+{
+  "tunnelListenAddr": "0.0.0.0:9000",
+  "token": "change-me-to-a-long-random-secret",
+
+  "certFile": "/etc/sluice/reverse-server.crt",
+  "keyFile": "/etc/sluice/reverse-server.key",
+  "certHosts": ["tunnel.example.net", "203.0.113.20"],
+  "handshakeTimeout": "10s",
+  "maxClients": 128,
+
+  "idleTimeout": "10m",
+  "limits": { "maxConnections": 200000, "perClient": { "connectionsPerSecond": 200, "burst": 1000 } },
+  "listener": { "keepAliveIdle": "30s", "drainTimeout": "30s" },
+
+  "admin": { "listenAddr": "127.0.0.1:9800" },
+  "log": { "level": "info", "format": "text" },
+  "process": { "memoryLimit": "4GiB" }
+}
