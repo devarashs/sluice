@@ -1,0 +1,23 @@
+{
+  "listenAddr": "0.0.0.0:8080",
+  "targetAddr": "10.0.0.5:80",
+
+  "dialTimeout": "10s",
+  "idleTimeout": "10m",
+
+  "limits": {
+    "maxConnections": 200000,
+    "perClient": { "connectionsPerSecond": 50, "burst": 200 }
+  },
+
+  "listener": {
+    "keepAliveIdle": "30s",
+    "keepAliveInterval": "10s",
+    "keepAliveCount": 3,
+    "drainTimeout": "30s"
+  },
+
+  "admin": { "listenAddr": "127.0.0.1:9800" },
+  "log": { "level": "info", "format": "text" },
+  "process": { "memoryLimit": "4GiB" }
+}

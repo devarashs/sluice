@@ -9,6 +9,13 @@
 // kernel spreads incoming connections across independent accept queues.
 // Elsewhere one socket is shared by all acceptors, which still overlaps the
 // work of accepting with the work of handing off.
+//
+// An acceptor takes one connection and then waits for a cap slot while
+// holding it, so at most one accepted-but-unserved connection exists per
+// acceptor and the rest stay in the kernel backlog. Reserving the slot before
+// Accept would bound descriptors slightly tighter, but with independent
+// queues it lets an acceptor hold the last slot while sitting on an empty
+// queue as clients wait in another; that starvation was seen on Linux.
 package listen
 
 import (
@@ -109,13 +116,15 @@ type Stats struct {
 
 // Listener owns one or more bound sockets for a single address.
 type Listener struct {
-	cfg       Config
-	guards    Guards
-	logger    *slog.Logger
-	sockets   []net.Listener
-	handlers  sync.WaitGroup
-	accepted  atomic.Uint64
-	rejected  atomic.Uint64
+	cfg      Config
+	guards   Guards
+	logger   *slog.Logger
+	sockets  []net.Listener
+	handlers sync.WaitGroup
+	accepted atomic.Uint64
+	rejected atomic.Uint64
+	// active counts handlers in flight.
+	active    atomic.Int64
 	closeOnce sync.Once
 }
 
@@ -187,7 +196,7 @@ func (l *Listener) Stats() Stats {
 	return Stats{
 		Accepted:       l.accepted.Load(),
 		RejectedByRate: l.rejected.Load(),
-		Active:         l.guards.Cap.Active(),
+		Active:         int(l.active.Load()),
 	}
 }
 
@@ -242,7 +251,7 @@ func (l *Listener) drain(cancelHandlers context.CancelFunc) {
 	case <-done:
 		return
 	case <-time.After(l.cfg.DrainTimeout.Duration()):
-		l.logger.Warn("drain timeout reached; closing connections still in flight", "active", l.guards.Cap.Active())
+		l.logger.Warn("drain timeout reached; closing connections still in flight", "active", l.active.Load())
 		cancelHandlers()
 		<-done
 	}
@@ -253,15 +262,8 @@ func (l *Listener) drain(cancelHandlers context.CancelFunc) {
 func (l *Listener) acceptLoop(ctx, handlerCtx context.Context, socket net.Listener, handler Handler) error {
 	var backoff time.Duration
 	for {
-		// Wait for a slot before accepting, so excess clients queue in the
-		// kernel backlog instead of being accepted and closed.
-		if err := l.guards.Cap.Acquire(ctx); err != nil {
-			return nil
-		}
-
 		conn, err := socket.Accept()
 		if err != nil {
-			l.guards.Cap.Release()
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -285,15 +287,23 @@ func (l *Listener) acceptLoop(ctx, handlerCtx context.Context, socket net.Listen
 			l.rejected.Add(1)
 			l.logger.Debug("connection refused by rate limit", "client", clientAddr)
 			conn.Close()
-			l.guards.Cap.Release()
 			continue
 		}
 
+		// Wait for a slot while holding this one connection; everything
+		// behind it stays in the kernel backlog.
+		if err := l.guards.Cap.Acquire(ctx); err != nil {
+			conn.Close()
+			return nil
+		}
+
 		l.accepted.Add(1)
+		l.active.Add(1)
 		l.handlers.Add(1)
 		go func() {
 			defer l.handlers.Done()
 			defer l.guards.Cap.Release()
+			defer l.active.Add(-1)
 			handler(handlerCtx, conn)
 		}()
 	}

@@ -71,8 +71,8 @@ func TestConcurrencyCapAndRelease(t *testing.T) {
 	if cap.TryAcquire() {
 		t.Fatal("third acquisition should fail at a cap of 2")
 	}
-	if cap.Active() != 2 || cap.Limit() != 2 {
-		t.Fatalf("active/limit = %d/%d", cap.Active(), cap.Limit())
+	if cap.Held() != 2 || cap.Limit() != 2 {
+		t.Fatalf("held/limit = %d/%d", cap.Held(), cap.Limit())
 	}
 	cap.Release()
 	if !cap.TryAcquire() {
@@ -114,8 +114,8 @@ func TestConcurrencyAcquireHonoursContext(t *testing.T) {
 	if err := cap.Acquire(ctx); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want deadline exceeded", err)
 	}
-	if cap.Active() != 1 {
-		t.Fatalf("active = %d after a failed acquire, want 1", cap.Active())
+	if cap.Held() != 1 {
+		t.Fatalf("active = %d after a failed acquire, want 1", cap.Held())
 	}
 }
 
@@ -126,8 +126,8 @@ func TestConcurrencyUnlimited(t *testing.T) {
 			t.Fatalf("unlimited cap refused acquisition %d", i)
 		}
 	}
-	if cap.Active() != 10000 || cap.Limit() != 0 {
-		t.Fatalf("active/limit = %d/%d", cap.Active(), cap.Limit())
+	if cap.Held() != 10000 || cap.Limit() != 0 {
+		t.Fatalf("active/limit = %d/%d", cap.Held(), cap.Limit())
 	}
 }
 

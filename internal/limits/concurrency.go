@@ -7,15 +7,16 @@ import (
 
 // Concurrency caps how many connections a mode handles at once.
 //
-// Acquire blocks rather than rejecting. A listener that waits before calling
-// Accept leaves excess clients in the kernel's accept backlog, where they
-// wait for a slot without costing a descriptor or a goroutine, instead of
-// being accepted only to be closed, which at high rates is pure churn.
+// Acquire blocks rather than rejecting. An acceptor that waits for a slot
+// while holding one accepted connection leaves everything behind it in the
+// kernel's accept backlog, where clients wait without costing a descriptor
+// or a goroutine, instead of being accepted only to be closed, which at high
+// rates is pure churn.
 type Concurrency struct {
 	// slots is nil when there is no cap.
-	slots  chan struct{}
-	limit  int
-	active atomic.Int64
+	slots chan struct{}
+	limit int
+	held  atomic.Int64
 }
 
 // NewConcurrency returns a cap of limit connections; limit <= 0 means none.
@@ -36,7 +37,7 @@ func (c *Concurrency) Acquire(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
-	c.active.Add(1)
+	c.held.Add(1)
 	return nil
 }
 
@@ -49,21 +50,21 @@ func (c *Concurrency) TryAcquire() bool {
 			return false
 		}
 	}
-	c.active.Add(1)
+	c.held.Add(1)
 	return true
 }
 
 // Release returns a slot taken by Acquire or TryAcquire.
 func (c *Concurrency) Release() {
-	c.active.Add(-1)
+	c.held.Add(-1)
 	if c.slots != nil {
 		<-c.slots
 	}
 }
 
-// Active is the number of slots currently held.
-func (c *Concurrency) Active() int {
-	return int(c.active.Load())
+// Held is the number of slots currently taken.
+func (c *Concurrency) Held() int {
+	return int(c.held.Load())
 }
 
 // Limit is the cap, or 0 when there is none.

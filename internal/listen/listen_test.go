@@ -133,6 +133,16 @@ func TestAcceptsAndHandsConnectionsToHandler(t *testing.T) {
 	}
 	wg.Wait()
 
+	// With every client gone, nothing is active even though each idle
+	// acceptor holds a cap slot while it waits in Accept.
+	settled := time.Now().Add(2 * time.Second)
+	for listener.Stats().Active != 0 && time.Now().Before(settled) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if stats := listener.Stats(); stats.Active != 0 {
+		t.Fatalf("active = %d with no clients connected; acceptor reservations must not count", stats.Active)
+	}
+
 	if err := stop(); err != nil {
 		t.Fatalf("Serve returned %v", err)
 	}
@@ -175,6 +185,50 @@ func TestConcurrencyCapHoldsExcessInBacklog(t *testing.T) {
 		t.Fatalf("third connection was not handled after a slot freed (started %d)", started.Load())
 	}
 	close(release)
+	if err := stop(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCapWithManyAcceptorsServesEveryQueue(t *testing.T) {
+	// On Linux each acceptor has its own SO_REUSEPORT queue. With a cap of 1
+	// and many acceptors, clients land in different queues; every one of
+	// them must still be served in turn. Reserving the slot before Accept
+	// let an acceptor hold the only slot on an empty queue while clients
+	// waited in another, which this test catches.
+	cap := limits.NewConcurrency(1)
+	addr, _, stop := serve(t, validated(t, Config{Acceptors: 8}), Guards{Cap: cap}, echoHandler)
+
+	const clients = 24
+	var wg sync.WaitGroup
+	failures := make(chan error, clients)
+	for i := 0; i < clients; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+			if err != nil {
+				failures <- err
+				return
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(15 * time.Second))
+			if _, err := conn.Write([]byte{byte(i)}); err != nil {
+				failures <- err
+				return
+			}
+			reply := make([]byte, 1)
+			if _, err := io.ReadFull(conn, reply); err != nil {
+				failures <- err
+				return
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(failures)
+	for err := range failures {
+		t.Errorf("client failed: %v", err)
+	}
 	if err := stop(); err != nil {
 		t.Fatal(err)
 	}
